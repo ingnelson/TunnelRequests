@@ -6,11 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
+
+	"github.com/nemeq/ServerTunnel/sync"
 )
 
 var tunelCache map[string]string
-var mutex = &sync.Mutex{}
+var spinLockTunnel = sync.SpinLock{}
 
 func init() {
 	tunelCache = make(map[string]string)
@@ -32,15 +33,15 @@ func TunnelHost(ih string) string {
 }
 
 func AddTunel(ih string, oh string) {
-	mutex.Lock()
+	spinLockTunnel.Lock()
 	tunelCache[ih] = oh
-	mutex.Unlock()
+	spinLockTunnel.Unlock()
 }
 
 func DelTunel(ih string) {
-	mutex.Lock()
+	spinLockTunnel.Lock()
 	delete(tunelCache, ih)
-	mutex.Unlock()
+	spinLockTunnel.Unlock()
 }
 
 func GetAllTunels() []string {

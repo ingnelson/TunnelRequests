@@ -2,11 +2,12 @@ package main
 
 import (
 	"net/http"
-	"sync"
+
+	"github.com/nemeq/ServerTunnel/sync"
 )
 
 var cache map[[32]byte]RequestCache
-var mutexReq = &sync.Mutex{}
+var spinLock = sync.SpinLock{}
 
 type RequestCache struct {
 	headers http.Header
@@ -27,15 +28,15 @@ func GetCachedRequest(ih [32]byte) *RequestCache {
 }
 
 func AddRequestToCache(ih [32]byte, oh RequestCache) {
-	mutexReq.Lock()
+	spinLock.Lock()
 	cache[ih] = oh
-	mutexReq.Unlock()
+	spinLock.Unlock()
 }
 
 func DeleteRequest(ih [32]byte) {
-	mutexReq.Lock()
+	spinLock.Lock()
 	delete(cache, ih)
-	mutexReq.Unlock()
+	spinLock.Unlock()
 }
 
 func CacheRequest(context *requestContext, tunnelContinue func(context *requestContext)) {
