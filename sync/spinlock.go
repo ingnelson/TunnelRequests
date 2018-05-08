@@ -27,10 +27,3 @@ func (sl *SpinLock) Unlock() {
 func (sl *SpinLock) TryLock() bool {
 	return atomic.CompareAndSwapUint32(&sl.f, 0, 1)
 }
-
-func (sl *SpinLock) String() string {
-	if atomic.LoadUint32(&sl.f) == 1 {
-		return "Locked"
-	}
-	return "Unlocked"
-}

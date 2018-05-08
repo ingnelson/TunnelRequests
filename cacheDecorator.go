@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/nemeq/ServerTunnel/sync"
 )
@@ -10,9 +11,10 @@ var cache map[[32]byte]RequestCache
 var spinLock = sync.SpinLock{}
 
 type RequestCache struct {
-	headers http.Header
-	body    []byte
-	cookies []http.Cookie
+	headers    http.Header
+	body       []byte
+	cookies    []http.Cookie
+	expiration time.Time
 }
 
 func init() {
@@ -39,22 +41,32 @@ func DeleteRequest(ih [32]byte) {
 	spinLock.Unlock()
 }
 
-func CacheRequest(context *requestContext, tunnelContinue func(context *requestContext)) {
-	cache := GetCachedRequest(context.hash)
-	if cache != nil {
-		for _, cookie := range cache.cookies {
-			http.SetCookie(*context.wr, &cookie)
-		}
-
-		for header, value := range cache.headers {
-			for i := 0; i < len(value); i++ {
-				(*context.wr).Header().Set(header, value[i])
-			}
-		}
-
-		(*context.wr).Write(cache.body)
+func CacheRequest(context *requestContext, tunnelContinue func(context *requestContext) bool) {
+	if tunnelContinue(context) {
+		go AddRequestToCache(context.hash, *context.cache)
 		return
 	}
-	tunnelContinue(context)
-	go AddRequestToCache(context.hash, *context.cache)
+
+	cache := GetCachedRequest(context.hash)
+	if cache != nil {
+		tunnelCacheResponse(cache, context.wr)
+	} else {
+		http.NotFound(*context.wr, context.rq)
+	}
+
+}
+
+func tunnelCacheResponse(cache *RequestCache, w *http.ResponseWriter) {
+	for _, cookie := range cache.cookies {
+		http.SetCookie(*w, &cookie)
+	}
+
+	for header, value := range cache.headers {
+		for i := 0; i < len(value); i++ {
+			(*w).Header().Set(header, value[i])
+		}
+	}
+
+	(*w).Write(cache.body)
+	return
 }

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type requestContext struct {
@@ -43,19 +44,24 @@ func doExternalRequest(r *http.Request, host string) *http.Response {
 	return resp
 }
 
-func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache, host string) {
+func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache, host string) bool {
 
 	resp := doExternalRequest(r, host)
+	if resp == nil {
+		return false
+	}
 	defer resp.Body.Close()
 
 	bodyRead, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
 
 	cache.cookies = make([]http.Cookie, len(resp.Cookies()))
 	cache.body = bodyRead
 	cache.headers = resp.Header
+	cache.expiration = time.Now().Add(time.Minute * 5)
 
 	for v, cookie := range resp.Cookies() {
 		ncookie := http.Cookie{
@@ -77,6 +83,7 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 	}
 
 	(*w).Write(bodyRead)
+	return true
 }
 
 func pipeline(w http.ResponseWriter, r *http.Request) {
@@ -88,10 +95,17 @@ func pipeline(w http.ResponseWriter, r *http.Request) {
 	context.host = TunnelHost(strings.Replace(r.Host, port, "", 1))
 	context.hash = createHash(r, &context.body)
 
-	CacheRequest(context, func(context *requestContext) {
-		tunnelRequest(context.wr, context.rq, context.cache, context.host)
+	addCorsHeaders(context.wr, context.rq)
+	CacheRequest(context, func(context *requestContext) bool {
+		return tunnelRequest(context.wr, context.rq, context.cache, context.host)
 	})
+}
 
+func addCorsHeaders(w *http.ResponseWriter, r *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
+	(*w).Header().Set("Access-Control-Allow-Headers", "authorization,content-type,x-apiinternalkey")
+	(*w).Header().Set("Access-Control-Allow-Methods", r.Method)
+	(*w).Header().Set("Access-Control-Allow-Origin", r.Host)
 }
 
 func createHash(r *http.Request, body *[]byte) [32]byte {
