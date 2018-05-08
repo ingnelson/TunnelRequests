@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/nemeq/ServerTunnel/sync"
 )
 
@@ -46,11 +47,13 @@ func CacheRequest(context *requestContext, tunnelContinue func(context *requestC
 		go AddRequestToCache(context.hash, *context.cache)
 		return
 	}
-
 	cache := GetCachedRequest(context.hash)
 	if cache != nil {
+		color.White("302 from cache " + context.host + context.rq.RequestURI)
 		tunnelCacheResponse(cache, context.wr)
+		return
 	} else {
+		color.Red("Not found in cache and request error.")
 		http.NotFound(*context.wr, context.rq)
 	}
 
@@ -66,6 +69,7 @@ func tunnelCacheResponse(cache *RequestCache, w *http.ResponseWriter) {
 			(*w).Header().Set(header, value[i])
 		}
 	}
+	(*w).Header().Set("CustomCache", "true")
 
 	(*w).Write(cache.body)
 	return

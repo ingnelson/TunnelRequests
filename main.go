@@ -2,11 +2,13 @@ package main
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 type requestContext struct {
@@ -38,7 +40,7 @@ func doExternalRequest(r *http.Request, host string) *http.Response {
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		fmt.Println(err)
+		color.Red(err.Error())
 		return nil
 	}
 	return resp
@@ -54,7 +56,7 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 
 	bodyRead, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		color.Red(err.Error())
 		return false
 	}
 
@@ -83,6 +85,15 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 	}
 
 	(*w).Write(bodyRead)
+	switch resp.StatusCode {
+	case 200:
+		color.Green(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI + " size in kb " + strconv.Itoa(len(bodyRead)/1024))
+	case 404:
+		color.Yellow(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+	case 500:
+		color.Red(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+	}
+
 	return true
 }
 
