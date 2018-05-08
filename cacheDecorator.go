@@ -49,12 +49,13 @@ func CacheRequest(context *requestContext, tunnelContinue func(context *requestC
 	}
 	cache := GetCachedRequest(context.hash)
 	if cache != nil {
-		color.White("302 from cache " + context.host + context.rq.RequestURI)
+		go color.White("302 from cache " + context.host + context.rq.RequestURI)
 		tunnelCacheResponse(cache, context.wr)
 		return
 	} else {
-		color.Red("Not found in cache and request error.")
-		http.NotFound(*context.wr, context.rq)
+		go color.Red("Not found in cache and request error.")
+		(*context.wr).WriteHeader(404)
+		(*context.wr).Write(context.cache.body)
 	}
 
 }

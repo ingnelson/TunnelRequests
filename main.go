@@ -40,7 +40,7 @@ func doExternalRequest(r *http.Request, host string) *http.Response {
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		color.Red(err.Error())
+		go color.Red(err.Error())
 		return nil
 	}
 	return resp
@@ -56,7 +56,7 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 
 	bodyRead, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		color.Red(err.Error())
+		go color.Red(err.Error())
 		return false
 	}
 
@@ -84,16 +84,19 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 		}
 	}
 
-	(*w).Write(bodyRead)
 	switch resp.StatusCode {
 	case 200:
-		color.Green(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI + " size in kb " + strconv.Itoa(len(bodyRead)/1024))
+		go color.Green(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI + " size " + strconv.Itoa(len(bodyRead)/1024) + " kb")
+		(*w).WriteHeader(resp.StatusCode)
+		(*w).Write(bodyRead)
+		return true
 	case 404:
-		color.Yellow(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+		go color.Yellow(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+		return false
 	case 500:
-		color.Red(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+		go color.Red(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)
+		return false
 	}
-
 	return true
 }
 
@@ -124,7 +127,7 @@ func createHash(r *http.Request, body *[]byte) [32]byte {
 }
 
 func main() {
-	color.Green("Service starting in port : " + port)
+	go color.Green("Service starting in port : " + port)
 	http.HandleFunc("/", pipeline)
 	if err := http.ListenAndServe(port, nil); err != nil {
 		panic(err)
