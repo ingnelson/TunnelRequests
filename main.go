@@ -124,6 +124,7 @@ func createHash(r *http.Request, body *[]byte) [32]byte {
 }
 
 func main() {
+	color.Green("Service starting in port : " + port)
 	http.HandleFunc("/", pipeline)
 	if err := http.ListenAndServe(port, nil); err != nil {
 		panic(err)

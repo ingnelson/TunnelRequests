@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/nemeq/ServerTunnel/sync"
 )
 
@@ -25,6 +26,7 @@ func init() {
 			fmt.Println(err)
 		}
 	}
+	color.Green("Host founds.")
 }
 
 // Get the tuneled host for a host
