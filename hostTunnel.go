@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/nemeq/ServerTunnel/sync"
+	"github.com/nemeq/ServerTunnel/syncsp"
 )
 
 var tunelCache map[string]string
-var spinLockTunnel = sync.SpinLock{}
+var spinLockTunnel = syncsp.SpinLock{}
 
 func init() {
 	tunelCache = make(map[string]string)

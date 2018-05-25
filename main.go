@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -24,6 +25,7 @@ var port = ":80"
 
 func doExternalRequest(r *http.Request, host string) *http.Response {
 	request, err := http.NewRequest(r.Method, host+r.RequestURI, r.Body)
+	request.Header.Set("User-Agent", r.Header.Get("User-Agent"))
 
 	cleanuri := CleanUrl(host)
 	for _, cookie := range r.Cookies() {
@@ -53,15 +55,20 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 		return false
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 200 {
+		multiWriter := io.MultiWriter(*w, &cache.body)
+		io.Copy(multiWriter, resp.Body)
+	} else {
+		io.Copy(*w, resp.Body)
+	}
 
 	bodyRead, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+
 		go color.Red(err.Error())
 		return false
 	}
-
 	cache.cookies = make([]http.Cookie, len(resp.Cookies()))
-	cache.body = bodyRead
 	cache.headers = resp.Header
 	cache.expiration = time.Now().Add(time.Minute * 5)
 
@@ -87,8 +94,6 @@ func tunnelRequest(w *http.ResponseWriter, r *http.Request, cache *RequestCache,
 	switch resp.StatusCode {
 	case 200:
 		go color.Green(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI + " size " + strconv.Itoa(len(bodyRead)/1024) + " kb")
-		(*w).WriteHeader(resp.StatusCode)
-		(*w).Write(bodyRead)
 		return true
 	case 404:
 		go color.Yellow(strconv.Itoa(resp.StatusCode) + " : " + host + r.RequestURI)

@@ -1,19 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/nemeq/ServerTunnel/sync"
+	"github.com/nemeq/ServerTunnel/syncsp"
 )
 
 var cache map[[32]byte]RequestCache
-var spinLock = sync.SpinLock{}
+var spinLock = syncsp.SpinLock{}
 
 type RequestCache struct {
 	headers    http.Header
-	body       []byte
+	body       bytes.Buffer
 	cookies    []http.Cookie
 	expiration time.Time
 }
@@ -55,7 +57,7 @@ func CacheRequest(context *requestContext, tunnelContinue func(context *requestC
 	} else {
 		go color.Red("Not found in cache and request error.")
 		(*context.wr).WriteHeader(404)
-		(*context.wr).Write(context.cache.body)
+		io.Copy((*context.wr), &context.cache.body)
 	}
 
 }
@@ -71,7 +73,6 @@ func tunnelCacheResponse(cache *RequestCache, w *http.ResponseWriter) {
 		}
 	}
 	(*w).Header().Set("CustomCache", "true")
-
-	(*w).Write(cache.body)
+	io.Copy(*w, &cache.body)
 	return
 }
