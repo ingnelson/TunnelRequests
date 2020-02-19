@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/nemeq/ServerTunnel/syncsp"
+	"github.com/nemeq/TunnelRequests/syncsp"
 )
 
 var cache map[[32]byte]RequestCache
